@@ -239,9 +239,9 @@ export default {
       if (this.searchQuery.trim()) filtered = filtered.filter(product => product.title.toLowerCase().includes(this.searchQuery.toLowerCase()));
       switch (this.sortOption) {
         case "priceAsc": return filtered.sort((a, b) => a.price - b.price);
-        case "priceDesc": return filtered.sort((b, a) => a.price - b.price);
+        case "priceDesc": return filtered.sort((a, b) => b.price - a.price);
         case "titleAsc": return filtered.sort((a, b) => a.title.localeCompare(b.title));
-        case "titleDesc": return filtered.sort((b, a) => a.title.localeCompare(b.title));
+        case "titleDesc": return filtered.sort((a, b) => b.title.localeCompare(a.title));
         default: return filtered;
       }
     },
@@ -295,8 +295,8 @@ export default {
           phone4: product.phone4,
           name: product.name,
           discountPrice: product.id === "20" ? (product.price * 0.9).toFixed(2) : null,
-          isNew: product.isNew || false,
-          info: product.info || ''
+          isNew: product.isNew || false, // Исправление 1: Добавлено свойство isNew для метки "New"
+          info: product.info || '' // Исправление 2: Добавлено свойство info для полного описания
         }));
         localStorage.setItem('adminProducts', JSON.stringify(this.products));
       } catch (error) {
@@ -378,8 +378,8 @@ export default {
           image: response.data.phone1.img,
           brand: response.data.brand,
           category: response.data.category,
-          isNew: false,
-          info: ''
+          isNew: false, // Исправление 3: Новые товары по умолчанию не "New", можно добавить опцию в форму
+          info: '' // Исправление 4: Поле info пустое для новых товаров
         });
         localStorage.setItem('adminProducts', JSON.stringify(this.products));
         this.showAddForm = false;
@@ -420,29 +420,13 @@ export default {
         this.showDeleteForm = false;
       }
     },
-    saveScrollPosition() {
-      localStorage.setItem('scrollPosition', window.scrollY);
-    },
-    restoreScrollPosition() {
-      const position = localStorage.getItem('scrollPosition');
-      if (position) {
-        setTimeout(() => {
-          window.scrollTo(0, parseInt(position));
-          localStorage.removeItem('scrollPosition');
-        }, 0);
-      }
-    },
   },
   created() {
     this.fetchProducts();
-    this.restoreScrollPosition();
-  },
-  beforeRouteLeave(to, from, next) {
-    this.saveScrollPosition();
-    next();
   },
 };
 </script>
+
 
 <style scoped>
 :root {

@@ -46,7 +46,7 @@ export default {
      
       const script = document.createElement('script');
       script.src =
-        'https://bot.jaicp.com/chatwidget/DVJXGKYv:94cfd870fd70b32106d731be86318f58946dc83e/justwidget.js?force=true';
+        'https://bot.jaicp.com/chatwidget/IPbHKtEw:597197a5683714ccdc4cbcb195b17b984aab1eb1/justwidget.js?force=true';
       script.async = true;
 
  
