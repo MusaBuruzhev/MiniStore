@@ -117,6 +117,7 @@
 
 <script>
 import Vue3Recaptcha2 from 'vue3-recaptcha2';
+import api from '@/api'; // Убедитесь, что путь верный
 
 export default {
   components: {
@@ -126,7 +127,6 @@ export default {
     return {
       email: '',
       password: '',
-      emailEntered: false,
       isRegistered: false,
       firstName: '',
       lastName: '',
@@ -208,45 +208,36 @@ export default {
         this.lastNameError = false;
       }
     },
-    login() {
+    async login() {
       if (this.emailError || this.passwordError) {
         this.$swal('Ошибка', 'Исправьте ошибки в форме', 'error');
         return;
       }
-      const users = JSON.parse(localStorage.getItem('users')) || [];
-      if (this.email === 'balaev134@gmail.com' && this.password === '_Sait_9087') {
-        const adminIndex = users.findIndex(u => u.email === this.email);
-        if (adminIndex === -1) {
-          const adminUser = {
-            id: Date.now(),
-            name: 'Admin',
-            surname: 'User',
-            email: this.email,
-            password: this.password,
-            avatar: null,
-            balance: 0,
-          };
-          users.push(adminUser);
-          localStorage.setItem('users', JSON.stringify(users));
+
+      try {
+        const response = await api.login({ email: this.email, password: this.password });
+        const { token, user } = response.data;
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('userEmail', this.email);
+        localStorage.setItem('isAuthenticated', 'true');
+        if (user.isAdmin) {
+          localStorage.setItem('isAdmin', 'true');
         }
-        localStorage.setItem('userEmail', this.email);
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('isAdmin', 'true');
+
         this.$router.push('/Profile');
-        return;
-      }
-      const user = users.find(u => u.email === this.email && u.password === this.password);
-      if (user) {
-        localStorage.setItem('userEmail', this.email);
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.removeItem('isAdmin');
-        this.$router.push('/Profile');
-      } else {
+      } catch (err) {
         this.$swal('Ошибка', 'Неверный email или пароль', 'error');
       }
     },
-    register() {
-      if (this.firstNameError || this.lastNameError || this.newEmailError || this.newPasswordError || this.passwordMismatch) {
+    async register() {
+      if (
+        this.firstNameError ||
+        this.lastNameError ||
+        this.newEmailError ||
+        this.newPasswordError ||
+        this.passwordMismatch
+      ) {
         this.$swal('Ошибка', 'Исправьте ошибки в форме', 'error');
         return;
       }
@@ -254,27 +245,26 @@ export default {
         this.$swal('Ошибка', 'Необходимо согласиться с пользовательским соглашением', 'error');
         return;
       }
-      const users = JSON.parse(localStorage.getItem('users')) || [];
-      if (users.some(user => user.email === this.newEmail)) {
-        this.$swal('Ошибка', 'Пользователь с таким email уже зарегистрирован', 'error');
-        return;
+
+      try {
+        const response = await api.register({
+          name: this.firstName,
+          surname: this.lastName,
+          email: this.newEmail,
+          password: this.newPassword,
+        });
+
+        const { token } = response.data;
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('userEmail', this.newEmail);
+        localStorage.setItem('isAuthenticated', 'true');
+
+        this.$swal('Успех', 'Регистрация успешна!', 'success');
+        this.$router.push('/Profile');
+      } catch (err) {
+        this.$swal('Ошибка', 'Пользователь с таким email уже существует', 'error');
       }
-      const newUser = {
-        id: Date.now(),
-        name: this.firstName,
-        surname: this.lastName,
-        email: this.newEmail,
-        password: this.newPassword,
-        avatar: null,
-        balance: 0,
-      };
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      localStorage.setItem('userEmail', this.newEmail);
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.removeItem('isAdmin');
-      this.$swal('Успех', 'Регистрация успешна!', 'success');
-      this.$router.push('/Profile');
     },
     onCaptchaVerified(response) {
       if (this.isLocalhost()) {

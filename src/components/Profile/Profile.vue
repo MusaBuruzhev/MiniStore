@@ -112,6 +112,7 @@
 <script>
 import * as Yup from 'yup';
 import axios from 'axios';
+import api from '@/api'; // Убедитесь, что путь верный
 
 export default {
   data() {
@@ -137,16 +138,21 @@ export default {
       return !!localStorage.getItem('isAuthenticated');
     },
     currentUser() {
-      const users = JSON.parse(localStorage.getItem('users')) || [];
-      const userEmail = localStorage.getItem('userEmail');
-      return users.find(user => user.email === userEmail) || {};
+      return this.user || {};
     },
     isAdmin() {
       return localStorage.getItem('isAdmin') === 'true';
+    },
+    userEmail() {
+      return localStorage.getItem('userEmail');
+    },
+    token() {
+      return localStorage.getItem('token');
     }
   },
   methods: {
     logout() {
+      localStorage.removeItem('token');
       localStorage.removeItem('userEmail');
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('isAdmin');
@@ -158,23 +164,21 @@ export default {
         const reader = new FileReader();
         reader.onload = (e) => {
           this.userAvatar = e.target.result;
-          this.saveAvatarToLocalStorage(e.target.result);
+          this.saveAvatarToServer(e.target.result);
         };
         reader.readAsDataURL(file);
       }
     },
-    saveAvatarToLocalStorage(imageUrl) {
-      const users = JSON.parse(localStorage.getItem('users')) || [];
-      const userEmail = localStorage.getItem('userEmail');
-      const userIndex = users.findIndex(user => user.email === userEmail);
-      if (userIndex !== -1) {
-        users[userIndex].avatar = imageUrl;
-        localStorage.setItem('users', JSON.stringify(users));
+    async saveAvatarToServer(imageUrl) {
+      try {
+        await api.updateProfile(this.token, { avatar: imageUrl });
+      } catch (err) {
+        console.error('Ошибка при сохранении аватара:', err);
       }
     },
     removeAvatar() {
       this.userAvatar = null;
-      this.saveAvatarToLocalStorage(null);
+      this.saveAvatarToServer(null);
     },
     triggerFileInput() {
       this.$refs.fileInput.click();
@@ -240,29 +244,22 @@ export default {
         this.$swal('Ошибка', this.phoneError, 'error');
         return;
       }
-
       const isReal = await this.validateRealPhoneNumber(this.editData.phone);
       if (!isReal) {
         this.$swal('Ошибка', this.phoneError, 'error');
         return;
       }
 
-      const users = JSON.parse(localStorage.getItem('users')) || [];
-      const userEmail = localStorage.getItem('userEmail');
-      const userIndex = users.findIndex(user => user.email === userEmail);
-      if (userIndex !== -1) {
-        users[userIndex] = {
-          ...users[userIndex],
-          name: this.editData.name,
-          surname: this.editData.surname,
-          phone: this.editData.phone,
-          birthdate: this.editData.birthdate,
-          about: this.editData.about,
+      try {
+        await api.updateProfile(this.token, {
+          ...this.editData,
           avatar: this.userAvatar
-        };
-        localStorage.setItem('users', JSON.stringify(users));
+        });
         this.isEditing = false;
         this.$swal('Успех', 'Профиль успешно сохранен!', 'success');
+        await this.loadProfile();
+      } catch (err) {
+        this.$swal('Ошибка', 'Не удалось сохранить профиль', 'error');
       }
     },
     formatBirthdate(date) {
@@ -279,32 +276,29 @@ export default {
     },
     checkFirstPurchase() {
       const orders = JSON.parse(localStorage.getItem('orders')) || [];
-      const userEmail = localStorage.getItem('userEmail');
       const userOrders = orders.filter(order => order.userId === this.currentUser.id);
-      
       if (userOrders.length === 1 && !this.currentUser.hasFirstPurchase) {
         this.showAchievementNotification = true;
         setTimeout(() => {
           this.showAchievementNotification = false;
         }, 5000);
-
-        const users = JSON.parse(localStorage.getItem('users')) || [];
-        const userIndex = users.findIndex(user => user.email === userEmail);
-        if (userIndex !== -1) {
-          users[userIndex].hasFirstPurchase = true;
-          localStorage.setItem('users', JSON.stringify(users));
-        }
+        this.currentUser.hasFirstPurchase = true;
+      }
+    },
+    async loadProfile() {
+      try {
+        const res = await api.getProfile(this.token);
+        const user = res.data;
+        this.user = user;
+        this.userAvatar = user.avatar;
+        this.checkFirstPurchase();
+      } catch (err) {
+        console.error('Ошибка загрузки профиля:', err);
       }
     }
   },
-  mounted() {
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const userEmail = localStorage.getItem('userEmail');
-    const user = users.find(user => user.email === userEmail);
-    if (user) {
-      this.userAvatar = user.avatar || null;
-      this.checkFirstPurchase();
-    }
+  async mounted() {
+    await this.loadProfile();
   },
   watch: {
     currentUser: {
